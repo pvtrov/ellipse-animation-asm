@@ -1,12 +1,10 @@
-.387
 assume cs:code , ds:data
 
 data segment
-    X_start     db 0                            ; os pozioma elipsy
-    Y_start     db 0                            ; os pionowa elipsy
+    X_axle     db 0                             ; os pozioma elipsy
+    Y_axle     db 0                             ; os pionowa elipsy
 
-    last_key    db 0                            ; kod ostatniego klawisza
-    error_1     db "Zle dane wejsciowe! $"
+    error_1    db "Zle dane wejsciowe! $"
 
 data ends
 
@@ -15,11 +13,22 @@ data ends
 code segment
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+; "deklaracja" używanych zmiennych
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+X_semi_axle  dw ?                               ; polos pozioma elipsy
+Y_semi_axle  dw ?                               ; polos pionowa elipsy
+
+X           dw ?                                ; X punktu
+Y           dw ?                                ; Y punktu
+
+p_color      db 13                              ; fioletowy kolor punktu
+background   db 0                               ; czarny kolor tła
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej jest glowna funckja sterujaca programem
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 main:
-    mov     ax, seg stack_                      ; ustawiam segment stosu
+    mov     ax, seg stack_                     ; ustawiam segment stosu
     mov     ss, ax
     mov     sp, offset stack_
 
@@ -28,31 +37,31 @@ get_arguments:
 
     mov     ax, seg data
     mov     es, ax
-    mov     si, 082h                            ; do si wrzucam offset w ktorym znajduje sie wywolanie z lini komend
-    mov     di, offset X_start                  ; do di wrzucam offset dla pierwszego argumentu ktory chce pobrac
-    call    str_to_int                          ; pobieram wielkosc X
-    mov     di, offset Y_start
-    call    str_to_int                          ; pobieram wielkosc Y
+    mov     si, 082h                           ; do si wrzucam offset w ktorym znajduje sie wywolanie z lini komend
+    mov     di, offset X_axle                  ; do di wrzucam offset dla pierwszego argumentu ktory chce pobrac
+    call    str_to_int                         ; pobieram wielkosc X
+    mov     di, offset Y_axle
+    call    str_to_int                         ; pobieram wielkosc Y
 
 set_start_dimensions:
     ; ustawiam wymiary potrzebne do narysowania elipsy
 
-    mov     ax, seg data                        ; do ds wrzucam segment danych
+    mov     ax, seg data                       ; do ds wrzucam segment danych
     mov     ds, ax
 
-    mov     al, byte ptr ds:[X_start]           ; do polosi x wrzucam polowe dlugosci X
+    mov     al, byte ptr ds:[X_axle]           ; do polosi x wrzucam polowe dlugosci X
     mov     ah, 0
     mov     bl, 2
     div     bl
     mov     ah, 0
-    mov     word ptr cs:[os_X], ax
+    mov     word ptr cs:[X_semi_axle], ax
 
-    mov     al, byte ptr ds:[Y_start]           ; do polosi y wrzucam polowe dlugosci Y
+    mov     al, byte ptr ds:[Y_axle]           ; do polosi y wrzucam polowe dlugosci Y
     mov     ah, 0
     mov     bl, 2
     div     bl
     mov     ah, 0
-    mov     word ptr cs:[os_Y], ax
+    mov     word ptr cs:[Y_semi_axle], ax
 
 enable_graphics:
     ; wlaczam tryb graficzny
@@ -68,7 +77,7 @@ handle_keys:
     in      al, 60h                             ; kod klawiatury
 
     escape:
-        cmp     al, 1                               ; 1 = ESC (zakoncz program)
+        cmp     al, 1                           ; 1 = ESC (zakoncz program)
         jne     left
 
         jmp     enable_text
@@ -77,28 +86,28 @@ handle_keys:
         cmp     al, 75                          ; 75 - lewa strzałka
         jne     right
 
-        dec     byte ptr cs:[os_X]
+        dec     byte ptr cs:[X_semi_axle]
         jmp     draw_again
 
     right:
         cmp     al, 77                          ; 77 - prawa strzałka
         jne     up
 
-        inc     byte ptr cs:[os_X]
+        inc     byte ptr cs:[X_semi_axle]
         jmp     draw_again
 
     up:
         cmp     al, 72                          ; 72 - strzałka do góry
         jne     down
 
-        inc     byte ptr cs:[os_Y]
+        inc     byte ptr cs:[Y_semi_axle]
         jmp     draw_again
 
     down:
         cmp     al, 80                          ; 80 - strzałka w dol
         jne     handle_keys
 
-        dec     byte ptr cs:[os_Y]
+        dec     byte ptr cs:[Y_semi_axle]
         jmp     draw_again
 
     draw_again:
@@ -116,7 +125,6 @@ enable_text:
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej jest funkcja do operacji na podanych argumentach
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 str_to_int:
     mov     bh, 0                               ; zeruje rejestr w ktorym przechowam wynik
     mov     cx, 0                               ; zeruje licznik zczytanych cyfr
@@ -173,11 +181,10 @@ str_to_int:
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej znajduja sie funkcje odpowiadajace za rysowanie elipsy
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-background   db 0
 clean_screen:
     ; funkcja zajmująca sie czyszczeniem ekranu
 
-    mov     ax, 0a00h                           ; podaje adres pamieci obrazu
+    mov     ax, 0a000h                          ; podaje adres pamieci obrazu
     mov     es, ax
 
     mov     di, 0                               ; wpisuje do di pierwszy adres komorki pamieci obrazu
@@ -189,58 +196,12 @@ clean_screen:
     ret
 
 ;---------------------------------------------------------------
-; elipsa
-os_X    dw ?                                      ; polos pozioma
-os_Y    dw ?                                      ; polos pionowa
-draw_elipse:
-    ; funkcja rysująca elipse
-
-    call    clean_screen
-
-    mov     cx, word ptr cs:[os_Y]
-
-    draw_X:
-        mov     cx, word ptr cs:[os_X]
-        X_point:
-            push    cx
-            mov     word ptr cs:[X], cx
-            mov     word ptr cs:[setX], cx
-            mov     ax, word ptr cs:[os_X]
-            mov     word ptr cs:[a], ax
-            mov     ax, word ptr cs:[os_Y]
-            mov     word ptr cs:[b], ax
-            call    set_point
-            mov     ax, word ptr cs:[setY]
-            mov     word ptr cs:[Y], ax
-            call    mirror_point
-            pop     cx
-            loop    X_point
-
-    draw_Y:
-        mov     cx, word ptr cs:[os_Y]
-        Y_point:
-            push    cx
-            mov     word ptr cs:[Y], cx
-            mov     word ptr cs:[setX], cx
-            mov     ax, word ptr cs:[os_Y]
-            mov     word ptr cs:[a], ax
-            mov     ax, word ptr cs:[os_X]
-            mov     word ptr cs:[b], ax
-            call    set_point
-            mov     ax, word ptr cs:[setY]
-            mov     word ptr cs:[X], ax
-            call    mirror_point
-            pop     cx
-            loop    Y_point
-        ret
-
-;---------------------------------------------------------------
 setX   dw ?                                     ; wyliczana zmienna
 setY   dw ?                                     ; zmienna służącą do wyliczenia
 a      dw ?                                     ; półoś zgodna z wsp wyliczaną
 b      dw ?                                     ; druga półoś
 set_point:
-    ; usatala punkt (x, y) = (x, sqrt((1-x^2/a^2)b^2))
+    ; ustala punkt (x, y) = (x, sqrt((1-x^2/a^2)b^2))
 
     finit
     fild    word ptr cs:[setX]                  ; x
@@ -255,6 +216,46 @@ set_point:
     fsqrt
 
     fist word ptr cs:[setY]                     ; zapisz wynik do setY
+
+    ret
+
+;---------------------------------------------------------------
+turn_point:
+    ; zapala punkt (x, y)
+
+    mov     ax, 0a000h                          ; adres pamięci obrazu
+    mov     es, ax
+
+    mov     ax, word ptr cs:[Y]                 ; ax=320*Y
+    mov     bx, 320
+    mul     bx
+
+    mov     bx, word ptr cs:[X]                 ; bx=ax+X=320*Y+X
+    add     bx, ax
+
+    mov     al, byte ptr cs:[p_color]           ; al=numer koloru k
+    mov     byte ptr es:[bx], al                ; do komórki o adresie bx przypisz kolor k
+
+    ret
+
+center_point:
+    ; umieszcza na srodku ekranu
+
+    push    word ptr cs:[X]
+    push    word ptr cs:[Y]
+
+    mov     ax, word ptr cs:[X]
+    add     ax, 160
+    mov     word ptr cs:[X], ax
+
+    mov     ax, word ptr cs:[Y]
+    add     ax, 100
+    mov     word ptr cs:[Y], ax
+
+    call    turn_point
+
+    pop     word ptr cs:[Y]
+    pop     word ptr cs:[X]
 
     ret
 
@@ -280,49 +281,48 @@ mirror_point:
 
     ret
 
-center_point:
-    ; umieszcza na srodku ekranu
-
-    push    word ptr cs:[X]
-    push    word ptr cs:[Y]
-
-    mov     ax, word ptr cs:[X]
-    add     ax, 160
-    mov     word ptr cs:[X], ax
-
-    mov     ax, word ptr cs:[Y]
-    add     ax, 100
-    mov     word ptr cs:[Y], ax
-
-    call    turn_point
-
-    pop     word ptr cs:[Y]
-    pop     word ptr cs:[X]
-
-    ret
-
 ;---------------------------------------------------------------
-; punkt
-X         dw ?
-Y         dw ?
-p_color   db 13                                 ; kolor punktu
-turn_point:
-    ; zapala punkt (x, y)
+draw_elipse:
+    ; funkcja rysująca elipse
 
-    mov     ax, 0a000h                          ; adres pamięci obrazu
-    mov     es, ax
+    call    clean_screen
 
-    mov     ax, word ptr cs:[Y]                 ; ax=320*Y
-    mov     bx, 320
-    mul     bx
+    mov     cx, word ptr cs:[Y_semi_axle]
 
-    mov     bx, word ptr cs:[X]                 ; bx=ax+X=320*Y+X
-    add     bx, ax
+    draw_X:
+        mov     cx, word ptr cs:[X_semi_axle]
+        X_point:
+            push    cx
+            mov     word ptr cs:[X], cx
+            mov     word ptr cs:[setX], cx
+            mov     ax, word ptr cs:[X_semi_axle]
+            mov     word ptr cs:[a], ax
+            mov     ax, word ptr cs:[Y_semi_axle]
+            mov     word ptr cs:[b], ax
+            call    set_point
+            mov     ax, word ptr cs:[setY]
+            mov     word ptr cs:[Y], ax
+            call    mirror_point
+            pop     cx
+            loop    X_point
 
-    mov     al, byte ptr cs:[p_color]           ; al=numer koloru k
-    mov     byte ptr es:[bx], al                ; do komórki o adresie bx przypisz kolor k
-
-    ret
+    draw_Y:
+        mov     cx, word ptr cs:[Y_semi_axle]
+        Y_point:
+            push    cx
+            mov     word ptr cs:[Y], cx
+            mov     word ptr cs:[setX], cx
+            mov     ax, word ptr cs:[Y_semi_axle]
+            mov     word ptr cs:[a], ax
+            mov     ax, word ptr cs:[X_semi_axle]
+            mov     word ptr cs:[b], ax
+            call    set_point
+            mov     ax, word ptr cs:[setY]
+            mov     word ptr cs:[X], ax
+            call    mirror_point
+            pop     cx
+            loop    Y_point
+        ret
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej są funckje zarzadzajace pomocnicze
@@ -332,21 +332,21 @@ check_dimensions:
     ; sprawdza czy nowe wymiary mieszcza sie w wymaganych
 
     X_overflow:
-        cmp     word ptr cs:[os_X], 160
+        cmp     word ptr cs:[X_semi_axle], 160
         jl      X_underflow
-        mov     word ptr cs:[os_X], 159
+        mov     word ptr cs:[X_semi_axle], 159
     X_underflow:
-        cmp     word ptr cs:[os_X], 0
+        cmp     word ptr cs:[X_semi_axle], 0
         jg      Y_overflow
-        mov     word ptr cs:[os_X], 1
+        mov     word ptr cs:[X_semi_axle], 1
     Y_overflow:
-        cmp     word ptr cs:[os_Y], 100
+        cmp     word ptr cs:[Y_semi_axle], 100
         jl      Y_underflow
-        mov     word ptr cs:[os_Y], 99
+        mov     word ptr cs:[Y_semi_axle], 99
     Y_underflow:
-        cmp     word ptr cs:[os_Y], 0
+        cmp     word ptr cs:[Y_semi_axle], 0
         jg      return_cd
-        mov     word ptr cs:[os_Y], 1
+        mov     word ptr cs:[Y_semi_axle], 1
     return_cd:
         ret
 
