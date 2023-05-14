@@ -1,14 +1,12 @@
 assume cs:code , ds:data
 
 data segment
-    X_axle     db 0                             ; os pozioma elipsy
-    Y_axle     db 0                             ; os pionowa elipsy
+    X_axle      db 0                             ; os pozioma elipsy
+    Y_axle      db 0                             ; os pionowa elipsy
 
-    error_1    db "Zle dane wejsciowe! $"
+    error_1     db "Zle dane wejsciowe! $"
 
 data ends
-
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 code segment
 
@@ -21,13 +19,14 @@ Y_semi_axle  dw ?                               ; polos pionowa elipsy
 X           dw ?                                ; X punktu
 Y           dw ?                                ; Y punktu
 
-p_color      db 13                              ; fioletowy kolor punktu
-background   db 0                               ; czarny kolor tła
+p_color      db 13                              ; poczatkowy kolor punktu
+background   db 0                               ; kolor tła
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej jest glowna funckja sterujaca programem
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 main:
+set_stack_segment:
     mov     ax, seg stack_                     ; ustawiam segment stosu
     mov     ss, ax
     mov     sp, offset stack_
@@ -40,6 +39,7 @@ get_arguments:
     mov     si, 082h                           ; do si wrzucam offset w ktorym znajduje sie wywolanie z lini komend
     mov     di, offset X_axle                  ; do di wrzucam offset dla pierwszego argumentu ktory chce pobrac
     call    str_to_int                         ; pobieram wielkosc X
+
     mov     di, offset Y_axle
     call    str_to_int                         ; pobieram wielkosc Y
 
@@ -74,52 +74,14 @@ enable_graphics:
     call    draw_elipse
 
 handle_keys:
-    in      al, 60h                             ; kod klawiatury
-
-    escape:
-        cmp     al, 1                           ; 1 = ESC (zakoncz program)
-        jne     left
-
-        jmp     enable_text
-
-    left:
-        cmp     al, 75                          ; 75 - lewa strzałka
-        jne     right
-
-        dec     byte ptr cs:[X_semi_axle]
-        jmp     draw_again
-
-    right:
-        cmp     al, 77                          ; 77 - prawa strzałka
-        jne     up
-
-        inc     byte ptr cs:[X_semi_axle]
-        jmp     draw_again
-
-    up:
-        cmp     al, 72                          ; 72 - strzałka do góry
-        jne     down
-
-        inc     byte ptr cs:[Y_semi_axle]
-        jmp     draw_again
-
-    down:
-        cmp     al, 80                          ; 80 - strzałka w dol
-        jne     handle_keys
-
-        dec     byte ptr cs:[Y_semi_axle]
-        jmp     draw_again
-
-    draw_again:
-        call    check_dimensions
-        call    draw_elipse
-        jmp     handle_keys
+    jmp     handle_key
 
 enable_text:
     mov     al, 3h
     mov     ah, 0
     int     10h
 
+end_:
     jmp     end_program
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -325,9 +287,50 @@ draw_elipse:
         ret
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+; ponizej są funckje zarzadzajace klawiatura
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+handle_key:
+    in      al, 60h                             ; kod klawiatury
+
+    escape:
+        cmp     al, 1                           ; 1 = ESC (zakoncz program)
+        jne     left
+
+        jmp     enable_text
+    left:
+        cmp     al, 75                          ; 75 - lewa strzałka
+        jne     right
+
+        dec     byte ptr cs:[X_semi_axle]
+        jmp     draw_again
+    right:
+        cmp     al, 77                          ; 77 - prawa strzałka
+        jne     up
+
+        inc     byte ptr cs:[X_semi_axle]
+        jmp     draw_again
+    up:
+        cmp     al, 72                          ; 72 - strzałka do góry
+        jne     down
+
+        inc     byte ptr cs:[Y_semi_axle]
+        jmp     draw_again
+    down:
+        cmp     al, 80                          ; 80 - strzałka w dol
+        jne     handle_key
+
+        dec     byte ptr cs:[Y_semi_axle]
+        jmp     draw_again
+
+
+    draw_again:
+        call    check_dimensions
+        call    draw_elipse
+        jmp     handle_key
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej są funckje zarzadzajace pomocnicze
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 check_dimensions:
     ; sprawdza czy nowe wymiary mieszcza sie w wymaganych
 
