@@ -19,9 +19,10 @@ Y_semi_axle  dw ?                               ; polos pionowa elipsy
 X            dw ?                               ; X punktu
 Y            dw ?                               ; Y punktu
 
-p_color      db 0                               ; poczatkowy kolor punktu
-background   db 13                              ; kolor tła
+p_color      db 13                              ; poczatkowy kolor punktu
+background   db 0                               ; kolor tła
 
+last_key     db 0                               ; ostatni wcisniety klawisz
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej jest glowna funckja sterujaca programem
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -145,14 +146,14 @@ str_to_int:
 clean_screen:
     ; funkcja zajmująca sie czyszczeniem ekranu
 
-    mov     ax, 0a000h                          ; podaje adres pamieci obrazu
-    mov     es, ax
+    mov     ax, 0a000h                          ; podaje adres pamieci obrazu w trybie graficznym
+    mov     es, ax                              ; do es wrzucam segment pamieci obrazu
 
-    mov     di, 0                               ; wpisuje do di pierwszy adres komorki pamieci obrazu
-    mov     cx, 64000                           ; tyle razy ma sie powtorzyc  zeby wyczyscic ekran
-    mov     al, byte ptr cs:[background]
-    cld
-    rep     stosb
+    mov     di, 0                               ; wpisuje do di pierwszy wskaznik na komorke obrazu
+    mov     cx, 64000                           ; tyle razy ma sie powtorzyc  zeby wyczyscic ekran (320*200=64000)
+    mov     al, byte ptr cs:[background]        ; wpisuje do al kolor tla
+    cld                                         ; ustawiam flagi na zero
+    rep     stosb                               ; powtarzam te instrukcje az cx bedzie rowne 0, czyli bede miec pewnosc ze tlo bedzie zamazane
 
     ret
 
@@ -162,21 +163,21 @@ setY   dw ?                                     ; zmienna służącą do wylicze
 a      dw ?                                     ; półoś zgodna z wsp wyliczaną
 b      dw ?                                     ; druga półoś
 set_point:
-    ; ustala punkt (x, y) = (x, sqrt((1-x^2/a^2)b^2))
+    ; ustala wspolrzedne punktu (x, y) na podstawie danego X = (x, sqrt((1-x^2/a^2)b^2))
 
-    finit
-    fild    word ptr cs:[setX]                  ; x
-    fimul   word ptr cs:[setX]                  ; x^2
-    fidiv   word ptr cs:[a]                     ; x^2/a
-    fidiv   word ptr cs:[a]                     ; x^2/a^2
-    fld1
-    fsub                                        ; x^2/a^2-1
-    fchs                                        ; 1-x^2/a^2
-    fimul   word ptr cs:[b]                     ; (1-x^2/a^2)b
-    fimul   word ptr cs:[b]                     ; (1-x^2/a^2)b^2
-    fsqrt
+    finit                                       ; inicjuje jednostke zmiennoprzecinkowa
+    fild    word ptr cs:[setX]                  ; x -> wpisuje setX z pamieci jako liczbe zmiennoprzecinkowa
+    fimul   word ptr cs:[setX]                  ; x^2 -> mnoze x przez siebie
+    fidiv   word ptr cs:[a]                     ; x^2/a -> dzielę x^2 przez a
+    fidiv   word ptr cs:[a]                     ; x^2/a^2 -> dzielę x^2/a przez a
+    fld1                                        ; wkładam 1 na wierzch stosu
+    fsub                                        ; x^2/a^2-1 -> odejmuję 1 od x^2/a^2
+    fchs                                        ; 1-x^2/a^2 ->  zmieniam znak na przeciwny
+    fimul   word ptr cs:[b]                     ; (1-x^2/a^2)b -> mnoze (1-x^2/a^2) przez b
+    fimul   word ptr cs:[b]                     ; (1-x^2/a^2)b^2 -> mnoze (1-x^2/a^2)b przez b
+    fsqrt                                       ; sqrt((1-x^2/a^2)b^2) -> pierwiastkuje poprzednie
 
-    fist word ptr cs:[setY]                     ; zapisz wynik do setY
+    fist word ptr cs:[setY]                     ; zaokraglam i zapisuje wynik do setY
 
     ret
 
@@ -184,38 +185,38 @@ set_point:
 turn_point:
     ; zapala punkt (x, y)
 
-    mov     ax, 0a000h                          ; adres pamięci obrazu
-    mov     es, ax
+    mov     ax, 0a000h                          ; zapisuje adres pamięci obrazu
+    mov     es, ax                              ; ustawiam segment pamieci ekranu w es
 
-    mov     ax, word ptr cs:[Y]                 ; ax=320*Y
-    mov     bx, 320
-    mul     bx
+    mov     ax, word ptr cs:[Y]                 ; wstawiam wspolrzedna Y
+    mov     bx, 320                             ; wpisuje 320 do bx (320 to szerokosc ekranu)
+    mul     bx                                  ; mnoze Y przez 320 ( 320 * Y )
 
-    mov     bx, word ptr cs:[X]                 ; bx=ax+X=320*Y+X
-    add     bx, ax
+    mov     bx, word ptr cs:[X]                 ; wstawiam wspolrzedna X
+    add     bx, ax                              ; dodaje do bx 320*Y ( 320 * Y + X ), wskazuje na polozenie punktu w pamieci
 
-    mov     al, byte ptr cs:[p_color]           ; al=numer koloru k
-    mov     byte ptr es:[bx], al                ; do komórki o adresie bx przypisz kolor k
+    mov     al, byte ptr cs:[p_color]           ; wpisuje jaki kolor elipsy chce narysowac
+    mov     byte ptr es:[bx], al                ; do komórki o adresie bx przypisuje chciany kolor
 
     ret
 
 center_point:
     ; umieszcza na srodku ekranu
 
-    push    word ptr cs:[X]
+    push    word ptr cs:[X]                     ; zapisuje wspolrzedne punktu na stosie
     push    word ptr cs:[Y]
 
-    mov     ax, word ptr cs:[X]
+    mov     ax, word ptr cs:[X]                 ; przesuwam punkt X o polowe szerokosci w prawo
     add     ax, 160
     mov     word ptr cs:[X], ax
 
-    mov     ax, word ptr cs:[Y]
+    mov     ax, word ptr cs:[Y]                 ; przesuwam punkt Y o polowe wysokosci w dol
     add     ax, 100
     mov     word ptr cs:[Y], ax
 
-    call    turn_point
+    call    turn_point                          ; zapalam punkt
 
-    pop     word ptr cs:[Y]
+    pop     word ptr cs:[Y]                     ; przywracam wspolrzedne punktu
     pop     word ptr cs:[X]
 
     ret
@@ -225,10 +226,10 @@ mirror_point:
 
     call    center_point                        ; (x, y)
 
-    mov     ax, 0
-    sub     ax, word ptr cs:[X]
-    mov     word ptr cs:[X], ax
-    call    center_point                        ; (-x, y)
+    mov     ax, 0                               ; zeruje ax
+    sub     ax, word ptr cs:[X]                 ; odejmuje od ax wspolrzedna x, wiec otrzymuje odbicie lustrzane (-x)
+    mov     word ptr cs:[X], ax                 ; wpisuje do X -x
+    call    center_point                        ; centruje punkt (-x, y)
 
     mov     ax, 0
     sub     ax, word ptr cs:[Y]
@@ -248,41 +249,57 @@ draw_elipse:
 
     call    clean_screen
 
-    mov     cx, word ptr cs:[Y_semi_axle]
-
     draw_X:
-        mov     cx, word ptr cs:[X_semi_axle]
+        ; rysuje punkty wzdłuz osi X
+
+        mov     cx, word ptr cs:[X_semi_axle]       ; wpisuje do cx pół oś X
         X_point:
-            push    cx
-            mov     word ptr cs:[X], cx
-            mov     word ptr cs:[setX], cx
-            mov     ax, word ptr cs:[X_semi_axle]
+            push    cx                              ; zapisuje cx na stosie, aby nie stracić jej wartości
+
+            mov     word ptr cs:[X], cx             ; wpisuje do X aktualny x punktu
+            mov     word ptr cs:[setX], cx          ; wpisuje do setX aktualny x punktu
+
+            mov     ax, word ptr cs:[X_semi_axle]   ; wpisuje do a długosc pol osi X
             mov     word ptr cs:[a], ax
-            mov     ax, word ptr cs:[Y_semi_axle]
+
+            mov     ax, word ptr cs:[Y_semi_axle]   ; wpisuje do b długosc pol osi Y
             mov     word ptr cs:[b], ax
-            call    set_point
-            mov     ax, word ptr cs:[setY]
+
+            call    set_point                       ; wyliczam współrzędne punktu
+
+            mov     ax, word ptr cs:[setY]          ; przypisuje do y wyliczona współrzędną Y
             mov     word ptr cs:[Y], ax
-            call    mirror_point
-            pop     cx
-            loop    X_point
+
+            call    mirror_point                    ; rysuje punkt w 4 cwiartkach symetrycznie
+
+            pop     cx                              ; przywracam cx
+            loop    X_point                         ; powtarzam to dla wszystkich punktów
 
     draw_Y:
-        mov     cx, word ptr cs:[Y_semi_axle]
+        ; rysuje punkty wzdłuz osi Y
+
+        mov     cx, word ptr cs:[Y_semi_axle]       ; wpisuje do cx pół oś Y
         Y_point:
-            push    cx
-            mov     word ptr cs:[Y], cx
-            mov     word ptr cs:[setX], cx
-            mov     ax, word ptr cs:[Y_semi_axle]
+            push    cx                              ; zapisuje cx na stosie, aby nie stracić jej wartości
+
+            mov     word ptr cs:[Y], cx             ; wpisuje do Y aktualny y punktu
+            mov     word ptr cs:[setX], cx          ; wpisuje do setX aktualny y punktu
+
+            mov     ax, word ptr cs:[Y_semi_axle]   ; wpisuje do a długosc pol osi Y
             mov     word ptr cs:[a], ax
-            mov     ax, word ptr cs:[X_semi_axle]
+
+            mov     ax, word ptr cs:[X_semi_axle]   ; wpisuje do b długosc pol osi X
             mov     word ptr cs:[b], ax
-            call    set_point
-            mov     ax, word ptr cs:[setY]
+
+            call    set_point                       ; wyliczam współrzędne punktu
+
+            mov     ax, word ptr cs:[setY]          ; przypisuje do y wyliczona współrzędną Y
             mov     word ptr cs:[X], ax
-            call    mirror_point
-            pop     cx
-            loop    Y_point
+
+            call    mirror_point                    ; rysuje punkt w 4 cwiartkach symetrycznie
+
+            pop     cx                              ; przywracam cx
+            loop    Y_point                         ; powtarzam to dla wszystkich punktów
         ret
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -290,6 +307,10 @@ draw_elipse:
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 handle_key:
     in      al, 60h                             ; kod klawiatury
+
+    cmp     last_key, al                        ; sprawdzam czy ostatni klawisz jest taki sam jak aktualny
+    je      handle_key                          ; jeśli tak to rysuje jeszcze raz
+    mov     byte ptr ds:[last_key], al          ; jeśli nie to zapisuje aktualny klawisz
 
     escape:
         cmp     al, 1                           ; 1 = ESC (zakoncz program)
@@ -359,16 +380,20 @@ handle_key:
             jmp     draw_again
         white:
             cmp     al, 8                      ; 8 - 7
-            jne     black
+            jne     draw_circle
 
             mov     byte ptr cs:[p_color], 15
             jmp     draw_again
-        black:
-            cmp     al, 9                      ; 9 - 8
-            jne     handle_key
+    draw_circle:
+        cmp     al, 46                          ; 46 - ALT + C
+        jne     draw_again
 
-            mov     byte ptr cs:[p_color], 0
-            jmp     draw_again
+        mov     byte ptr cs:[p_color], 10
+        mov     ax, word ptr cs:[Y_semi_axle]
+        mov     word ptr cs:[X_semi_axle], ax
+
+        call    draw_elipse
+        jmp     handle_circle_key
 
     draw_again:
         call    check_dimensions
@@ -376,19 +401,141 @@ handle_key:
         jmp     handle_key
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+; ponizej są funckje zarzadzajace klawiatura dla koła
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+handle_circle_key:
+    in      al, 60h                             ; kod klawiatury
+
+    cmp     last_key, al                        ; sprawdzam czy ostatni klawisz jest taki sam jak aktualny
+    je      handle_circle_key                   ; jeśli tak to rysuje jeszcze raz
+    mov     byte ptr ds:[last_key], al          ; jeśli nie to zapisuje aktualny klawisz
+
+    escape_c:
+        cmp     al, 1                           ; 1 = ESC (zakoncz program)
+        jne     left_c
+
+        jmp     enable_text
+    left_c:
+        cmp     al, 75                          ; 75 - lewa strzałka
+        jne     right_c
+
+        dec     byte ptr cs:[X_semi_axle]
+        dec     byte ptr cs:[Y_semi_axle]
+        jmp     draw_again_c
+    right_c:
+        cmp     al, 77                          ; 77 - prawa strzałka
+        jne     up_c
+
+        inc     byte ptr cs:[X_semi_axle]
+        inc     byte ptr cs:[Y_semi_axle]
+        jmp     draw_again_c
+    up_c:
+        cmp     al, 72                          ; 72 - strzałka do góry
+        jne     down_c
+
+        inc     byte ptr cs:[Y_semi_axle]
+        inc     byte ptr cs:[X_semi_axle]
+        jmp     draw_again_c
+    down_c:
+        cmp     al, 80                          ; 80 - strzałka w dol
+        jne     change_color_c
+
+        dec     byte ptr cs:[Y_semi_axle]
+        dec     byte ptr cs:[X_semi_axle]
+        jmp     draw_again_c
+    change_color_c:
+        pink_c:
+            cmp     al, 2                      ; 2 - 1
+            jne     blue_c
+
+            mov     byte ptr cs:[p_color], 5
+            jmp     draw_again_c
+        blue_c:
+            cmp     al, 3                      ; 3 - 2
+            jne     green_c
+
+            mov     byte ptr cs:[p_color], 11
+            jmp     draw_again_c
+        green_c:
+            cmp     al, 4                      ; 4 - 3
+            jne     yellow_c
+
+            mov     byte ptr cs:[p_color], 10
+            jmp     draw_again_c
+        yellow_c:
+            cmp     al, 5                      ; 5 - 4
+            jne     orange_c
+
+            mov     byte ptr cs:[p_color], 14
+            jmp     draw_again_c
+        orange_c:
+            cmp     al, 6                      ; 6 - 5
+            jne     red_c
+
+            mov     byte ptr cs:[p_color], 12
+            jmp     draw_again_c
+        red_c:
+            cmp     al, 7                      ; 7 - 6
+            jne     white_c
+
+            mov     byte ptr cs:[p_color], 4
+            jmp     draw_again_c
+        white_c:
+            cmp     al, 8                      ; 8 - 7
+            jne     draw_elipse_from_c
+
+            mov     byte ptr cs:[p_color], 15
+            jmp     draw_again
+    draw_elipse_from_c:
+        cmp     al, 16                          ; 46 - ALT + C
+        jne     draw_again_c
+
+        mov     byte ptr cs:[p_color], 13
+        call    draw_elipse
+        jmp     handle_key
+
+    draw_again_c:
+        call    check_dimensions_for_circle
+        call    draw_elipse
+        jmp     handle_circle_key
+
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej są funckje zarzadzajace pomocnicze
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 check_dimensions:
     ; sprawdza czy nowe wymiary mieszcza sie w wymaganych
 
+    X_overflow_c:
+        cmp     word ptr cs:[X_semi_axle], 160      ; sprawdza czy nowy rozmiar nie jest za duzy
+        jl      X_underflow_c
+        mov     word ptr cs:[X_semi_axle], 159      ; jesli tak to zmniejsza rozmiar
+    X_underflow_c:
+        cmp     word ptr cs:[X_semi_axle], 0        ; sprawdza czy nowy rozmiar nie jest za maly
+        jg      Y_overflow_c
+        mov     word ptr cs:[X_semi_axle], 1        ; jesli tak to zwieksza rozmiar
+    Y_overflow_c:
+        cmp     word ptr cs:[Y_semi_axle], 100
+        jl      Y_underflow_c
+        mov     word ptr cs:[Y_semi_axle], 99
+    Y_underflow_c:
+        cmp     word ptr cs:[Y_semi_axle], 0
+        jg      return_cdfc
+        mov     word ptr cs:[Y_semi_axle], 1
+    return_cdfc:
+        ret
+
+check_dimensions_for_circle:
+    ; sprawdza czy nowe wymiary mieszcza sie w wymaganych
+
     X_overflow:
-        cmp     word ptr cs:[X_semi_axle], 160
+        cmp     word ptr cs:[X_semi_axle], 100      ; sprawdza czy nowy rozmiar nie jest za duzy
         jl      X_underflow
-        mov     word ptr cs:[X_semi_axle], 159
+        mov     word ptr cs:[X_semi_axle], 99      ; jesli tak to zmniejsza rozmiar
     X_underflow:
-        cmp     word ptr cs:[X_semi_axle], 0
+        cmp     word ptr cs:[X_semi_axle], 0        ; sprawdza czy nowy rozmiar nie jest za maly
         jg      Y_overflow
-        mov     word ptr cs:[X_semi_axle], 1
+        mov     word ptr cs:[X_semi_axle], 1        ; jesli tak to zwieksza rozmiar
     Y_overflow:
         cmp     word ptr cs:[Y_semi_axle], 100
         jl      Y_underflow
