@@ -479,9 +479,9 @@ check_dimensions:
 
 too_small:
     ; sprawdza czy nowe wymiary kola mieszcza sie w wymaganych
-    cmp     word ptr cs:[X_semi_axle], 3            ; sprawdza czy nowy rozmiar nie jest za maly
+    cmp     word ptr cs:[X_semi_axle], 10           ; sprawdza czy nowy rozmiar nie jest za maly
     jg      draw_again_down
-    mov     word ptr cs:[X_semi_axle], 5            ; jesli tak to zwieksza rozmiar i skocz do zwiekszania
+    mov     word ptr cs:[X_semi_axle], 11           ; jesli tak to zwieksza rozmiar i skocz do zwiekszania
     jmp     draw_again_up
 
 too_big:
