@@ -403,102 +403,54 @@ handle_key:
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej są funckje zarzadzajace klawiatura dla koła
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+flag_circle    db 0 ; jesli 0 to sie zmniejszal jesli 1 to sie zwiekszal
+
 handle_circle_key:
     in      al, 60h                             ; kod klawiatury
 
-    cmp     last_key, al                        ; sprawdzam czy ostatni klawisz jest taki sam jak aktualny
-    je      handle_circle_key                   ; jeśli tak to rysuje jeszcze raz
-    mov     byte ptr ds:[last_key], al          ; jeśli nie to zapisuje aktualny klawisz
-
     escape_c:
         cmp     al, 1                           ; 1 = ESC (zakoncz program)
-        jne     left_c
+        jne     draw_elipse_from_c
 
         jmp     enable_text
-    left_c:
-        cmp     al, 75                          ; 75 - lewa strzałka
-        jne     right_c
 
-        dec     byte ptr cs:[X_semi_axle]
-        dec     byte ptr cs:[Y_semi_axle]
-        jmp     draw_again_c
-    right_c:
-        cmp     al, 77                          ; 77 - prawa strzałka
-        jne     up_c
-
-        inc     byte ptr cs:[X_semi_axle]
-        inc     byte ptr cs:[Y_semi_axle]
-        jmp     draw_again_c
-    up_c:
-        cmp     al, 72                          ; 72 - strzałka do góry
-        jne     down_c
-
-        inc     byte ptr cs:[Y_semi_axle]
-        inc     byte ptr cs:[X_semi_axle]
-        jmp     draw_again_c
-    down_c:
-        cmp     al, 80                          ; 80 - strzałka w dol
-        jne     change_color_c
-
-        dec     byte ptr cs:[Y_semi_axle]
-        dec     byte ptr cs:[X_semi_axle]
-        jmp     draw_again_c
-    change_color_c:
-        pink_c:
-            cmp     al, 2                      ; 2 - 1
-            jne     blue_c
-
-            mov     byte ptr cs:[p_color], 5
-            jmp     draw_again_c
-        blue_c:
-            cmp     al, 3                      ; 3 - 2
-            jne     green_c
-
-            mov     byte ptr cs:[p_color], 11
-            jmp     draw_again_c
-        green_c:
-            cmp     al, 4                      ; 4 - 3
-            jne     yellow_c
-
-            mov     byte ptr cs:[p_color], 10
-            jmp     draw_again_c
-        yellow_c:
-            cmp     al, 5                      ; 5 - 4
-            jne     orange_c
-
-            mov     byte ptr cs:[p_color], 14
-            jmp     draw_again_c
-        orange_c:
-            cmp     al, 6                      ; 6 - 5
-            jne     red_c
-
-            mov     byte ptr cs:[p_color], 12
-            jmp     draw_again_c
-        red_c:
-            cmp     al, 7                      ; 7 - 6
-            jne     white_c
-
-            mov     byte ptr cs:[p_color], 4
-            jmp     draw_again_c
-        white_c:
-            cmp     al, 8                      ; 8 - 7
-            jne     draw_elipse_from_c
-
-            mov     byte ptr cs:[p_color], 15
-            jmp     draw_again
     draw_elipse_from_c:
-        cmp     al, 16                          ; 46 - ALT + C
+        cmp     al, 18                          ; 46 - ALT + E
         jne     draw_again_c
 
         mov     byte ptr cs:[p_color], 13
         call    draw_elipse
         jmp     handle_key
 
-    draw_again_c:
-        call    check_dimensions_for_circle
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+; ponizej są funckje odpowiadajce za animacje
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+draw_again_c:
+    cmp     flag_circle, 0
+    je      draw_again_down_c
+
+    cmp     flag_circle, 1
+    je      draw_again_up_c
+
+    draw_again_down_c:
+        dec     byte ptr cs:[X_semi_axle]
+        dec     byte ptr cs:[Y_semi_axle]
+        call    too_small
+
+    draw_again_down:
+        mov     byte ptr cs:[flag_circle], 0
         call    draw_elipse
         jmp     handle_circle_key
 
+    draw_again_up_c:
+        inc     byte ptr cs:[X_semi_axle]
+        inc     byte ptr cs:[Y_semi_axle]
+        call    too_big
+
+    draw_again_up:
+        mov     byte ptr cs:[flag_circle], 1
+        call    draw_elipse
+        jmp     handle_circle_key
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej są funckje zarzadzajace pomocnicze
@@ -520,32 +472,23 @@ check_dimensions:
         mov     word ptr cs:[Y_semi_axle], 99
     Y_underflow_c:
         cmp     word ptr cs:[Y_semi_axle], 0
-        jg      return_cdfc
-        mov     word ptr cs:[Y_semi_axle], 1
-    return_cdfc:
-        ret
-
-check_dimensions_for_circle:
-    ; sprawdza czy nowe wymiary mieszcza sie w wymaganych
-
-    X_overflow:
-        cmp     word ptr cs:[X_semi_axle], 100      ; sprawdza czy nowy rozmiar nie jest za duzy
-        jl      X_underflow
-        mov     word ptr cs:[X_semi_axle], 99      ; jesli tak to zmniejsza rozmiar
-    X_underflow:
-        cmp     word ptr cs:[X_semi_axle], 0        ; sprawdza czy nowy rozmiar nie jest za maly
-        jg      Y_overflow
-        mov     word ptr cs:[X_semi_axle], 1        ; jesli tak to zwieksza rozmiar
-    Y_overflow:
-        cmp     word ptr cs:[Y_semi_axle], 100
-        jl      Y_underflow
-        mov     word ptr cs:[Y_semi_axle], 99
-    Y_underflow:
-        cmp     word ptr cs:[Y_semi_axle], 0
         jg      return_cd
         mov     word ptr cs:[Y_semi_axle], 1
     return_cd:
         ret
+
+too_small:
+    ; sprawdza czy nowe wymiary kola mieszcza sie w wymaganych
+    cmp     word ptr cs:[X_semi_axle], 3            ; sprawdza czy nowy rozmiar nie jest za maly
+    jg      draw_again_down
+    mov     word ptr cs:[X_semi_axle], 5            ; jesli tak to zwieksza rozmiar i skocz do zwiekszania
+    jmp     draw_again_up
+
+too_big:
+    cmp     word ptr cs:[X_semi_axle], 100          ; sprawdza czy nowy rozmiar nie jest za duzy
+    jl      draw_again_up
+    mov     word ptr cs:[X_semi_axle], 99           ; jesli tak to zmniejsza rozmiar i skocz do zmniejszania
+    jmp     draw_again_down
 
 bad_input_exception:
     ; wyrzuca blad zlych danych
