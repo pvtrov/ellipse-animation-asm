@@ -1,10 +1,10 @@
 assume cs:code , ds:data
 
 data segment
-    X_axle      db 0                             ; os pozioma elipsy
-    Y_axle      db 0                             ; os pionowa elipsy
+    X_axle              db 0                    ; os pozioma elipsy
+    Y_axle              db 0                    ; os pionowa elipsy
 
-    error_1     db "Zle dane wejsciowe! $"
+    error_1             db "Zle dane wejsciowe! $"
 
 data ends
 
@@ -16,11 +16,11 @@ code segment
 X_semi_axle  dw ?                               ; polos pozioma elipsy
 Y_semi_axle  dw ?                               ; polos pionowa elipsy
 
-X           dw ?                                ; X punktu
-Y           dw ?                                ; Y punktu
+X            dw ?                               ; X punktu
+Y            dw ?                               ; Y punktu
 
-p_color      db 13                              ; poczatkowy kolor punktu
-background   db 0                               ; kolor tła
+p_color      db 0                               ; poczatkowy kolor punktu
+background   db 13                              ; kolor tła
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej jest glowna funckja sterujaca programem
@@ -70,7 +70,6 @@ enable_graphics:
     mov     ah, 0
     int     10h
 
-    mov     byte ptr cs:[p_color], 13           ; do ke przypisany losowy kolor początkowy elipsy
     call    draw_elipse
 
 handle_keys:
@@ -317,11 +316,59 @@ handle_key:
         jmp     draw_again
     down:
         cmp     al, 80                          ; 80 - strzałka w dol
-        jne     handle_key
+        jne     change_color
 
         dec     byte ptr cs:[Y_semi_axle]
         jmp     draw_again
+    change_color:
+        pink:
+            cmp     al, 2                      ; 2 - 1
+            jne     blue
 
+            mov     byte ptr cs:[p_color], 5
+            jmp     draw_again
+        blue:
+            cmp     al, 3                      ; 3 - 2
+            jne     green
+
+            mov     byte ptr cs:[p_color], 11
+            jmp     draw_again
+        green:
+            cmp     al, 4                      ; 4 - 3
+            jne     yellow
+
+            mov     byte ptr cs:[p_color], 10
+            jmp     draw_again
+        yellow:
+            cmp     al, 5                      ; 5 - 4
+            jne     orange
+
+            mov     byte ptr cs:[p_color], 14
+            jmp     draw_again
+        orange:
+            cmp     al, 6                      ; 6 - 5
+            jne     red
+
+            mov     byte ptr cs:[p_color], 12
+            jmp     draw_again
+        red:
+            cmp     al, 7                      ; 7 - 6
+            jne     white
+
+            mov     byte ptr cs:[p_color], 4
+            jmp     draw_again
+        white:
+            cmp     al, 8                      ; 8 - 7
+            jne     black
+
+            mov     byte ptr cs:[p_color], 15
+            jmp     draw_again
+        black:
+            cmp     al, 9                      ; 9 - 8
+            jne     handle_key
+
+            mov     byte ptr cs:[p_color], 0
+            jmp     draw_again
 
     draw_again:
         call    check_dimensions
