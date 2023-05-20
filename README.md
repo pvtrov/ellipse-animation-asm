@@ -11,7 +11,7 @@ Once you run the program and an ellipse is drawn, you can use the arrows to enla
 :arrow_right: - ellipse increases in size on X-axis\
 :arrow_left: - ellipse shrinks on X-axis
 
-Moreover, you can change elipse colors using:\
+Moreover, you can change elipse color using:\
 1 - :purple_circle: \
 2 - :large_blue_circle: \
 3 - :green_circle: \
