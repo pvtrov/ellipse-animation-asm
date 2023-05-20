@@ -55,7 +55,7 @@ Output: bad input data
     ```bash
     dosbox
     ```
-3. Mount C in *elipse-animation-asm* directory:
+3. Mount C in *ellipse-animation-asm* directory:
     ```bash
     Z:\> mount c <path-to-directory>
     Z:\> c:
