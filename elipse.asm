@@ -22,7 +22,6 @@ Y            dw ?                               ; Y punktu
 p_color      db 13                              ; poczatkowy kolor punktu
 background   db 0                               ; kolor tła
 
-last_key     db 0                               ; ostatni wcisniety klawisz
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ; ponizej jest glowna funckja sterujaca programem
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -69,7 +68,7 @@ enable_graphics:
 
     mov     al, 13h                             ; 320x200 256 kolorów
     mov     ah, 0
-    int     10h
+    int     10h                                 ; ustawiam tryb graficzny na podstawie wartosci w al i ah
 
     call    draw_elipse
 
@@ -77,9 +76,9 @@ handle_keys:
     jmp     handle_key
 
 enable_text:
-    mov     al, 3h
+    mov     al, 3h                              ; 80 kolumn, 25 wierszy
     mov     ah, 0
-    int     10h
+    int     10h                                 ; ustawiam tryb tekstowy na podstawie wartosci w al i ah
 
 end_:
     jmp     end_program
@@ -152,8 +151,8 @@ clean_screen:
     mov     di, 0                               ; wpisuje do di pierwszy wskaznik na komorke obrazu
     mov     cx, 64000                           ; tyle razy ma sie powtorzyc  zeby wyczyscic ekran (320*200=64000)
     mov     al, byte ptr cs:[background]        ; wpisuje do al kolor tla
-    cld                                         ; ustawiam flagi na zero
-    rep     stosb                               ; powtarzam te instrukcje az cx bedzie rowne 0, czyli bede miec pewnosc ze tlo bedzie zamazane
+    cld                                         ; ustawiam flage DF na zero
+    rep     stosb                               ; powtarzam te instrukcje az cx bedzie rowne 0, czyli zeby zamazac tlo
 
     ret
 
@@ -201,7 +200,7 @@ turn_point:
     ret
 
 center_point:
-    ; umieszcza na srodku ekranu
+    ; umieszcza punkt w odpowiednim miejscu
 
     push    word ptr cs:[X]                     ; zapisuje wspolrzedne punktu na stosie
     push    word ptr cs:[Y]
@@ -306,11 +305,7 @@ draw_elipse:
 ; ponizej są funckje zarzadzajace klawiatura
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 handle_key:
-    in      al, 60h                             ; kod klawiatury
-
-    cmp     last_key, al                        ; sprawdzam czy ostatni klawisz jest taki sam jak aktualny
-    je      handle_key                          ; jeśli tak to rysuje jeszcze raz
-    mov     byte ptr ds:[last_key], al          ; jeśli nie to zapisuje aktualny klawisz
+    in      al, 60h                             ; wpisuje do al z portu 60h (klawiatura) i wartosc wcisnietego klawisza
 
     escape:
         cmp     al, 1                           ; 1 = ESC (zakoncz program)
