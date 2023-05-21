@@ -32,7 +32,7 @@ NOTE: the arguments are given when starting the program
 
 #### Examples:
 Input: *elipse 20 200* \
-Output: cute purple elipse \
+Output: cute purple elipse 
 
 #### Moreover, my program handles exceptions and errors as *bad input* data:
 Input: *elipse 20 350*\
